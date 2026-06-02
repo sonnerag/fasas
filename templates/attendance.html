@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Records - Attendance Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .form-group input {
+            width: 200px;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .table th, .table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .table tr:hover {
+            background: #f8fafc;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .class-badge {
+            background: #e0f2fe;
+            color: #0c4a6e;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .class-badge.no-class {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 768px) {
+            .back-btn {
+                position: static;
+                transform: none;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-btn">← Back to Home</a>
+            <h1>📊 Attendance Records</h1>
+            <p>View and analyze attendance history</p>
+        </div>
+
+        <div class="main-content">
+            <div class="form-group">
+                <label for="attendanceDate">Select Date:</label>
+                <input type="date" id="attendanceDate" value="">
+            </div>
+            <div id="attendanceRecords"></div>
+        </div>
+    </div>
+
+    <script>
+        class AttendanceRecords {
+            constructor() {
+                this.apiBase = '/api';
+                this.initializeElements();
+                this.setupEventListeners();
+                this.loadAttendanceRecords();
+            }
+
+            initializeElements() {
+                // Set today's date
+                document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
+            }
+
+            setupEventListeners() {
+                document.getElementById('attendanceDate').addEventListener('change', () => {
+                    this.loadAttendanceRecords();
+                });
+            }
+
+            async loadAttendanceRecords() {
+                const date = document.getElementById('attendanceDate').value;
+                
+                try {
+                    const response = await fetch(`${this.apiBase}/attendance?date=${date}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const recordsDiv = document.getElementById('attendanceRecords');
+                        
+                        if (data.attendance.length === 0) {
+                            recordsDiv.innerHTML = '<div class="no-data">No attendance records found for this date.</div>';
+                            return;
+                        }
+                        
+                        recordsDiv.innerHTML = '<table class="table"><thead><tr><th>Name</th><th>Student ID</th><th>Time</th><th>Class</th></tr></thead><tbody></tbody></table>';
+                        
+                        const tbody = recordsDiv.querySelector('tbody');
+                        data.attendance.forEach(record => {
+                            const row = tbody.insertRow();
+                            
+                            const classBadge = record.class && record.class !== 'No Class' 
+                                ? `<span class="class-badge">${record.class}</span>`
+                                : `<span class="class-badge no-class">No Class</span>`;
+                            
+                            row.innerHTML = `
+                                <td>${record.name}</td>
+                                <td>${record.student_id}</td>
+                                <td>${record.time}</td>
+                                <td>${classBadge}</td>
+                            `;
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading attendance:', error);
+                    document.getElementById('attendanceRecords').innerHTML = '<div class="no-data">Error loading attendance records.</div>';
+                }
+            }
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', () => {
+            new AttendanceRecords();
+        });
+    </script>
+</body>
+</html>

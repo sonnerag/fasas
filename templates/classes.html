@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Classes - Attendance Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .form-section {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 30px;
+        }
+
+        .form-section h3 {
+            margin-bottom: 20px;
+            color: #1e293b;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+        }
+
+        .btn-success {
+            background: #10b981;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: #f59e0b;
+        }
+
+        .btn-warning:hover {
+            background: #d97706;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .table th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .table tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .table tbody tr:hover {
+            background: #f3f4f6;
+        }
+
+        .student-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .student-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .student-item:hover {
+            background: #f3f4f6;
+        }
+
+        .student-item.selected {
+            background: #dbeafe;
+        }
+
+        .student-checkbox {
+            margin-right: 10px;
+        }
+
+        .student-info {
+            flex: 1;
+        }
+
+        .student-id {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .student-name {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .selected-count {
+            background: #10b981;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .no-students {
+            text-align: center;
+            color: #64748b;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-section {
+            margin-bottom: 30px;
+        }
+
+        .modal-section h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 8px;
+        }
+
+        .student-list-modal {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .student-item-modal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            background: #f8fafc;
+        }
+
+        .student-item-modal:hover {
+            background: #f1f5f9;
+        }
+
+        .remove-student-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-student-btn:hover {
+            background: #dc2626;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .modal-actions .btn {
+            width: auto;
+            padding: 10px 20px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .back-btn {
+                position: static;
+                transform: none;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-btn">← Back to Home</a>
+            <h1>🏫 Manage Classes</h1>
+            <p>Create and organize students into different classes with scheduling</p>
+        </div>
+
+        <div class="main-content">
+            <div class="form-section">
+                <h3>➕ Create New Class</h3>
+                <form id="createClassForm">
+                    <div class="form-group">
+                        <label for="className">Class Name:</label>
+                        <input type="text" id="className" required placeholder="e.g., Computer Science 101">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="classDate">Class Date:</label>
+                            <input type="date" id="classDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="classTime">Class Time:</label>
+                            <input type="time" id="classTime" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="duration">Duration (minutes):</label>
+                        <input type="number" id="duration" value="60" min="15" max="300" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Select Students:</label>
+                        <div class="student-list" id="studentList">
+                            <div class="no-students">Loading students...</div>
+                        </div>
+                        <div style="margin-top: 10px; text-align: center;">
+                            <span id="selectedCount" class="selected-count" style="display: none;">0 selected</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">➕ Create Class</button>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h3>🏫 Existing Classes</h3>
+                <div id="classesList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for editing class -->
+    <div id="editClassModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Edit Class</h2>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="modal-section">
+                    <h3>📝 Class Information</h3>
+                    <div class="form-group">
+                        <label for="editClassName">Class Name:</label>
+                        <input type="text" id="editClassName" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editClassDate">Class Date:</label>
+                            <input type="date" id="editClassDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="editClassTime">Class Time:</label>
+                            <input type="time" id="editClassTime" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="editDuration">Duration (minutes):</label>
+                        <input type="number" id="editDuration" min="15" max="300" required>
+                    </div>
+                </div>
+
+                <div class="modal-section">
+                    <h3>�� Students in Class</h3>
+                    <div class="student-list-modal" id="modalStudentList">
+                        <!-- Students will be loaded here -->
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-danger" id="deleteClassBtn">🗑️ Delete Class</button>
+                    <button type="button" class="btn btn-warning" id="saveClassBtn">💾 Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ClassManagement {
+            constructor() {
+                this.apiBase = '/api';
+                this.selectedStudents = new Set();
+                this.currentEditingClass = null;
+                this.initializeElements();
+                this.setupEventListeners();
+                this.loadClasses();
+                this.loadStudents();
+            }
+
+            initializeElements() {
+                this.studentList = document.getElementById('studentList');
+                this.selectedCount = document.getElementById('selectedCount');
+                this.modal = document.getElementById('editClassModal');
+                this.closeBtn = document.querySelector('.close');
+                
+                // Set default date to today
+                document.getElementById('classDate').value = new Date().toISOString().split('T')[0];
+            }
+
+            setupEventListeners() {
+                document.getElementById('createClassForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.createClass();
+                });
+
+                // Modal event listeners
+                this.closeBtn.addEventListener('click', () => {
+                    this.closeModal();
+                });
+
+                window.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.closeModal();
+                    }
+                });
+
+                document.getElementById('saveClassBtn').addEventListener('click', () => {
+                    this.saveClassChanges();
+                });
+
+                document.getElementById('deleteClassBtn').addEventListener('click', () => {
+                    this.deleteClass();
+                });
+            }
+
+            async loadStudents() {
+                try {
+                    const response = await fetch(`${this.apiBase}/students`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.renderStudentList(data.students);
+                    } else {
+                        this.studentList.innerHTML = '<div class="no-students">Error loading students</div>';
+                    }
+                } catch (error) {
+                    console.error('Error loading students:', error);
+                    this.studentList.innerHTML = '<div class="no-students">Error loading students</div>';
+                }
+            }
+
+            renderStudentList(students) {
+                if (students.length === 0) {
+                    this.studentList.innerHTML = '<div class="no-students">No students found. Add some students first!</div>';
+                    return;
+                }
+
+                this.studentList.innerHTML = '';
+                
+                students.forEach(student => {
+                    const studentItem = document.createElement('div');
+                    studentItem.className = 'student-item';
+                    studentItem.dataset.studentId = student.id;
+                    
+                    studentItem.innerHTML = `
+                        <input type="checkbox" class="student-checkbox" id="student_${student.id}">
+                        <div class="student-info">
+                            <div class="student-id">${student.id}</div>
+                            <div class="student-name">${student.name}</div>
+                        </div>
+                    `;
+                    
+                    // Add click event to toggle selection
+                    studentItem.addEventListener('click', (e) => {
+                        if (e.target.type !== 'checkbox') {
+                            const checkbox = studentItem.querySelector('.student-checkbox');
+                            checkbox.checked = !checkbox.checked;
+                        }
+                        this.toggleStudent(student.id, studentItem);
+                    });
+                    
+                    // Add checkbox change event
+                    const checkbox = studentItem.querySelector('.student-checkbox');
+                    checkbox.addEventListener('change', () => {
+                        this.toggleStudent(student.id, studentItem);
+                    });
+                    
+                    this.studentList.appendChild(studentItem);
+                });
+            }
+
+            toggleStudent(studentId, studentItem) {
+                const checkbox = studentItem.querySelector('.student-checkbox');
+                
+                if (checkbox.checked) {
+                    this.selectedStudents.add(studentId);
+                    studentItem.classList.add('selected');
+                } else {
+                    this.selectedStudents.delete(studentId);
+                    studentItem.classList.remove('selected');
+                }
+                
+                this.updateSelectedCount();
+            }
+
+            updateSelectedCount() {
+                const count = this.selectedStudents.size;
+                if (count > 0) {
+                    this.selectedCount.textContent = `${count} selected`;
+                    this.selectedCount.style.display = 'inline-block';
+                } else {
+                    this.selectedCount.style.display = 'none';
+                }
+            }
+
+            async createClass() {
+                const className = document.getElementById('className').value;
+                const classDate = document.getElementById('classDate').value;
+                const classTime = document.getElementById('classTime').value;
+                const duration = document.getElementById('duration').value;
+                const selectedStudentIds = Array.from(this.selectedStudents);
+                
+                if (!className.trim()) {
+                    alert('Please enter a class name');
+                    return;
+                }
+                
+                if (!classDate || !classTime) {
+                    alert('Please select class date and time');
+                    return;
+                }
+                
+                if (selectedStudentIds.length === 0) {
+                    alert('Please select at least one student');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBase}/classes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: className,
+                            student_ids: selectedStudentIds,
+                            class_date: classDate,
+                            class_time: classTime,
+                            duration_minutes: parseInt(duration)
+                        })
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert(`Class "${className}" created successfully with ${selectedStudentIds.length} students!`);
+                        document.getElementById('createClassForm').reset();
+                        this.selectedStudents.clear();
+                        this.updateSelectedCount();
+                        this.loadStudents(); // Refresh to clear selections
+                        this.loadClasses();
+                        
+                        // Reset default date
+                        document.getElementById('classDate').value = new Date().toISOString().split('T')[0];
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error creating class: ' + error.message);
+                }
+            }
+
+            async loadClasses() {
+                try {
+                    const response = await fetch(`${this.apiBase}/classes`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.renderClassesList(data.classes);
+                    }
+                } catch (error) {
+                    console.error('Error loading classes:', error);
+                }
+            }
+
+            renderClassesList(classes) {
+                const classesList = document.getElementById('classesList');
+                
+                if (classes.length === 0) {
+                    classesList.innerHTML = '<div class="no-students">No classes created yet</div>';
+                    return;
+                }
+                
+                classesList.innerHTML = '<table class="table"><thead><tr><th>Class Name</th><th>Date & Time</th><th>Students</th></tr></thead><tbody></tbody></table>';
+                
+                const tbody = classesList.querySelector('tbody');
+                classes.forEach(cls => {
+                    const row = tbody.insertRow();
+                    
+                    // Format date and time
+                    const classDate = new Date(cls.class_date).toLocaleDateString();
+                    const classTime = cls.class_time;
+                    const duration = cls.duration_minutes;
+                    
+                    row.innerHTML = `
+                        <td><strong>${cls.name}</strong></td>
+                        <td>
+                            <div>📅 ${classDate}</div>
+                            <div>🕐 ${classTime} (${duration} min)</div>
+                        </td>
+                        <td>${cls.student_ids.length} students</td>
+                    `;
+                    
+                    // Add click event to open modal
+                    row.addEventListener('click', () => {
+                        this.openEditModal(cls.id);
+                    });
+                });
+            }
+
+            async openEditModal(classId) {
+                try {
+                    const response = await fetch(`${this.apiBase}/classes/${classId}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.currentEditingClass = data.class;
+                        this.populateEditModal(data.class);
+                        this.modal.style.display = 'block';
+                    } else {
+                        alert('Error loading class details');
+                    }
+                } catch (error) {
+                    console.error('Error loading class details:', error);
+                    alert('Error loading class details');
+                }
+            }
+
+            populateEditModal(classData) {
+                // Populate form fields
+                document.getElementById('editClassName').value = classData.name;
+                document.getElementById('editClassDate').value = classData.class_date;
+                document.getElementById('editClassTime').value = classData.class_time;
+                document.getElementById('editDuration').value = classData.duration_minutes;
+
+                // Populate student list
+                const modalStudentList = document.getElementById('modalStudentList');
+                modalStudentList.innerHTML = '';
+
+                if (classData.student_ids && classData.student_ids.length > 0) {
+                    classData.student_ids.forEach((studentId, index) => {
+                        const studentName = classData.student_names[index] || 'Unknown';
+                        const studentItem = document.createElement('div');
+                        studentItem.className = 'student-item-modal';
+                        studentItem.innerHTML = `
+                            <div>
+                                <strong>${studentId}</strong> - ${studentName}
+                            </div>
+                            <button class="remove-student-btn" onclick="app.removeStudentFromClass('${studentId}')">
+                                Remove
+                            </button>
+                        `;
+                        modalStudentList.appendChild(studentItem);
+                    });
+                } else {
+                    modalStudentList.innerHTML = '<div class="no-students">No students in this class</div>';
+                }
+            }
+
+            removeStudentFromClass(studentId) {
+                if (confirm(`Are you sure you want to remove student ${studentId} from this class?`)) {
+                    // Remove from current class data
+                    const studentIndex = this.currentEditingClass.student_ids.indexOf(studentId);
+                    if (studentIndex > -1) {
+                        this.currentEditingClass.student_ids.splice(studentIndex, 1);
+                        this.currentEditingClass.student_names.splice(studentIndex, 1);
+                        
+                        // Refresh the modal display
+                        this.populateEditModal(this.currentEditingClass);
+                    }
+                }
+            }
+
+            async saveClassChanges() {
+                if (!this.currentEditingClass) return;
+
+                const updatedClass = {
+                    name: document.getElementById('editClassName').value,
+                    class_date: document.getElementById('editClassDate').value,
+                    class_time: document.getElementById('editClassTime').value,
+                    duration_minutes: parseInt(document.getElementById('editDuration').value),
+                    student_ids: this.currentEditingClass.student_ids
+                };
+
+                // For now, we'll need to implement an update endpoint
+                // For simplicity, we'll delete and recreate the class
+                try {
+                    // Delete old class
+                    await fetch(`${this.apiBase}/classes/${this.currentEditingClass.id}`, {
+                        method: 'DELETE'
+                    });
+
+                    // Create new class with updated data
+                    const response = await fetch(`${this.apiBase}/classes`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(updatedClass)
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Class updated successfully!');
+                        this.closeModal();
+                        this.loadClasses();
+                    } else {
+                        alert('Error updating class: ' + result.error);
+                    }
+                } catch (error) {
+                    alert('Error updating class: ' + error.message);
+                }
+            }
+
+            async deleteClass() {
+                if (!this.currentEditingClass) return;
+
+                if (confirm(`Are you sure you want to delete the class "${this.currentEditingClass.name}"? This action cannot be undone.`)) {
+                    try {
+                        const response = await fetch(`${this.apiBase}/classes/${this.currentEditingClass.id}`, {
+                            method: 'DELETE'
+                        });
+
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            alert('Class deleted successfully!');
+                            this.closeModal();
+                            this.loadClasses();
+                        } else {
+                            alert('Error deleting class: ' + result.error);
+                        }
+                    } catch (error) {
+                        alert('Error deleting class: ' + error.message);
+                    }
+                }
+            }
+
+            closeModal() {
+                this.modal.style.display = 'none';
+                this.currentEditingClass = null;
+            }
+        }
+
+        // Initialize the app
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new ClassManagement();
+        });
+    </script>
+</body>
+</html>

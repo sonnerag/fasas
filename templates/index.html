@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Management System - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .nav-menu {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            padding: 40px;
+        }
+
+        .nav-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .nav-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .nav-card-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .nav-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .nav-card p {
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .status-bar {
+            background: #f8fafc;
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .status-item {
+            display: inline-block;
+            margin: 0 20px;
+            padding: 10px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .status-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .nav-menu {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .status-item {
+                display: block;
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Attendance Management System</h1>
+            <p>Secure face recognition with anti-spoofing technology</p>
+        </div>
+
+        <div class="nav-menu">
+            <a href="/live" class="nav-card">
+                <div class="nav-card-icon">📹</div>
+                <h3>Live Detection</h3>
+                <p>Real-time face detection and attendance tracking with anti-spoofing protection</p>
+            </a>
+
+            <a href="/students" class="nav-card">
+                <div class="nav-card-icon">👥</div>
+                <h3>Manage Students</h3>
+                <p>Add, edit, and manage student information with photo capture</p>
+            </a>
+
+            <a href="/attendance" class="nav-card">
+                <div class="nav-card-icon">📊</div>
+                <h3>Attendance Records</h3>
+                <p>View and analyze attendance history and reports</p>
+            </a>
+
+            <a href="/classes" class="nav-card">
+                <div class="nav-card-icon">🏫</div>
+                <h3>Manage Classes</h3>
+                <p>Create and organize students into different classes</p>
+            </a>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span>System Status: </span>
+                <span id="systemStatus" class="status-value">Checking...</span>
+            </div>
+            <div class="status-item">
+                <span>Students Loaded: </span>
+                <span id="studentsLoaded" class="status-value">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/health');
+                if (response.ok) {
+                    const health = await response.json();
+                    document.getElementById('systemStatus').textContent = 'Online';
+                    document.getElementById('systemStatus').style.color = '#10b981';
+                    document.getElementById('studentsLoaded').textContent = health.students_loaded;
+                } else {
+                    throw new Error('System not responding');
+                }
+            } catch (error) {
+                document.getElementById('systemStatus').textContent = 'Offline';
+                document.getElementById('systemStatus').style.color = '#ef4444';
+            }
+        }
+
+        // Check system status on load and every 10 seconds
+        checkSystemStatus();
+        setInterval(checkSystemStatus, 10000);
+    </script>
+</body>
+
+</html>

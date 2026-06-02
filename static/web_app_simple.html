@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Face Anti-Spoofing - Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .video-section {
+            position: relative;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+
+        .video-frame {
+            width: 100%;
+            height: auto;
+            display: block;
+            max-width: 640px;
+        }
+
+        .face-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .face-box {
+            position: absolute;
+            border: 3px solid;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .face-box.real {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .face-box.fake {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .face-label {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .face-label.real {
+            background: #10b981;
+        }
+
+        .face-label.fake {
+            background: #ef4444;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .status-card h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .status-value {
+            font-weight: 600;
+        }
+
+        .controls {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .controls h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .control-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .connection-status {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .connection-status.connected {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .connection-status.disconnected {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Multi-Face Anti-Spoofing</h1>
+            <p>Real-time face liveness detection powered by advanced AI models</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-container">
+                    <img id="videoFrame" class="video-frame" src="" alt="Camera Feed">
+                    <div id="faceOverlay" class="face-overlay"></div>
+                    <div id="loading" class="loading" style="display: none;">
+                        🔍 Detecting faces...
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div id="connectionStatus" class="connection-status disconnected">
+                    🔴 Backend Disconnected
+                </div>
+
+                <div class="status-card">
+                    <h3>📊 Detection Stats</h3>
+                    <div class="status-item">
+                        <span>Total Faces:</span>
+                        <span id="totalFaces" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Real Faces:</span>
+                        <span id="realFaces" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Fake Faces:</span>
+                        <span id="fakeFaces" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>FPS:</span>
+                        <span id="fps" class="status-value">0</span>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <h3>🎛️ Controls</h3>
+                    <div class="control-group">
+                        <label for="maxFaces">Max Faces:</label>
+                        <input type="number" id="maxFaces" min="1" max="10" value="5">
+                    </div>
+                    <div class="control-group">
+                        <label for="threshold">Threshold:</label>
+                        <input type="range" id="threshold" min="0.1" max="1.0" step="0.1" value="0.5">
+                        <span id="thresholdValue">0.5</span>
+                    </div>
+                    <button id="startBtn" class="btn">▶️ Start Detection</button>
+                    <button id="stopBtn" class="btn" disabled>⏹️ Stop Detection</button>
+                    <button id="updateSettingsBtn" class="btn">⚙️ Update Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class AntiSpoofingWebApp {
+            constructor() {
+                this.apiBase = 'http://localhost:5000/api';
+                this.isConnected = false;
+                this.isDetecting = false;
+                this.updateInterval = null;
+                this.frameInterval = null;
+                this.originalFrameSize = { width: 640, height: 480 }; // Default camera resolution
+                this.currentFrameSize = { width: 0, height: 0 };
+                
+                // Offset correction for better alignment
+                this.offsetX = 5;  // Move boxes slightly to the right
+                this.offsetY = 8;  // Move boxes slightly down
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.checkConnection();
+            }
+
+            initializeElements() {
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.videoFrame = document.getElementById('videoFrame');
+                this.faceOverlay = document.getElementById('faceOverlay');
+                this.loading = document.getElementById('loading');
+                
+                this.totalFaces = document.getElementById('totalFaces');
+                this.realFaces = document.getElementById('realFaces');
+                this.fakeFaces = document.getElementById('fakeFaces');
+                this.fps = document.getElementById('fps');
+                
+                this.maxFacesInput = document.getElementById('maxFaces');
+                this.thresholdInput = document.getElementById('threshold');
+                this.thresholdValue = document.getElementById('thresholdValue');
+                
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.updateSettingsBtn = document.getElementById('updateSettingsBtn');
+            }
+
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.startDetection());
+                this.stopBtn.addEventListener('click', () => this.stopDetection());
+                this.updateSettingsBtn.addEventListener('click', () => this.updateSettings());
+                
+                this.thresholdInput.addEventListener('input', (e) => {
+                    this.thresholdValue.textContent = e.target.value;
+                });
+
+                // Update frame size when image loads
+                this.videoFrame.addEventListener('load', () => {
+                    this.updateFrameSize();
+                });
+
+                // Update frame size on window resize
+                window.addEventListener('resize', () => {
+                    this.updateFrameSize();
+                });
+            }
+
+            updateFrameSize() {
+                const img = this.videoFrame;
+                if (img.naturalWidth && img.naturalHeight) {
+                    this.originalFrameSize = {
+                        width: img.naturalWidth,
+                        height: img.naturalHeight
+                    };
+                }
+                
+                // Get the displayed size
+                const rect = img.getBoundingClientRect();
+                this.currentFrameSize = {
+                    width: rect.width,
+                    height: rect.height
+                };
+                
+                console.log('Frame size updated:', {
+                    original: this.originalFrameSize,
+                    displayed: this.currentFrameSize
+                });
+            }
+
+            async checkConnection() {
+                try {
+                    const response = await fetch(`${this.apiBase}/health`);
+                    if (response.ok) {
+                        const health = await response.json();
+                        this.isConnected = true;
+                        this.connectionStatus.textContent = '🟢 Backend Connected';
+                        this.connectionStatus.className = 'connection-status connected';
+                        console.log('Backend health:', health);
+                    } else {
+                        throw new Error('Backend not responding');
+                    }
+                } catch (error) {
+                    this.isConnected = false;
+                    this.connectionStatus.textContent = '🔴 Backend Disconnected';
+                    this.connectionStatus.className = 'connection-status disconnected';
+                    console.error('Connection check failed:', error);
+                }
+                
+                // Check again in 5 seconds
+                setTimeout(() => this.checkConnection(), 5000);
+            }
+
+            async startDetection() {
+                if (!this.isConnected) {
+                    alert('Backend not connected. Please check if the Python server is running.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBase}/start_detection`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        this.isDetecting = true;
+                        this.startBtn.disabled = true;
+                        this.stopBtn.disabled = false;
+                        this.loading.style.display = 'block';
+                        
+                        // Start updating frame and stats
+                        this.startUpdates();
+                    } else {
+                        throw new Error('Failed to start detection');
+                    }
+                } catch (error) {
+                    console.error('Failed to start detection:', error);
+                    alert('Failed to start detection. Please try again.');
+                }
+            }
+
+            async stopDetection() {
+                try {
+                    const response = await fetch(`${this.apiBase}/stop_detection`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        this.isDetecting = false;
+                        this.startBtn.disabled = false;
+                        this.stopBtn.disabled = true;
+                        this.loading.style.display = 'none';
+                        
+                        // Stop updates
+                        this.stopUpdates();
+                    }
+                } catch (error) {
+                    console.error('Failed to stop detection:', error);
+                }
+            }
+
+            async updateSettings() {
+                if (!this.isConnected) return;
+
+                try {
+                    const settings = {
+                        maxFaces: parseInt(this.maxFacesInput.value),
+                        threshold: parseFloat(this.thresholdInput.value)
+                    };
+
+                    const response = await fetch(`${this.apiBase}/settings`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(settings)
+                    });
+
+                    if (response.ok) {
+                        console.log('Settings updated:', settings);
+                    }
+                } catch (error) {
+                    console.error('Failed to update settings:', error);
+                }
+            }
+
+            startUpdates() {
+                // Update frame every 100ms
+                this.frameInterval = setInterval(() => this.updateFrame(), 100);
+                
+                // Update stats every 500ms
+                this.updateInterval = setInterval(() => this.updateStats(), 500);
+            }
+
+            stopUpdates() {
+                if (this.frameInterval) {
+                    clearInterval(this.frameInterval);
+                    this.frameInterval = null;
+                }
+                
+                if (this.updateInterval) {
+                    clearInterval(this.updateInterval);
+                    this.updateInterval = null;
+                }
+            }
+
+            async updateFrame() {
+                try {
+                    const response = await fetch(`${this.apiBase}/current_frame`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.videoFrame.src = data.frame;
+                            this.updateFaceOverlay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to update frame:', error);
+                }
+            }
+
+            async updateStats() {
+                try {
+                    const response = await fetch(`${this.apiBase}/faces`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.updateStatsDisplay(data.stats);
+                            this.currentFaces = data.faces;
+                            this.updateFaceOverlay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to update stats:', error);
+                }
+            }
+
+            updateStatsDisplay(stats) {
+                this.totalFaces.textContent = stats.total_faces || 0;
+                this.realFaces.textContent = stats.real_faces || 0;
+                this.fakeFaces.textContent = stats.fake_faces || 0;
+                this.fps.textContent = Math.round(stats.fps || 0);
+            }
+
+            updateFaceOverlay() {
+                if (!this.currentFaces || !this.originalFrameSize.width || !this.currentFrameSize.width) return;
+
+                // Clear existing overlays
+                this.faceOverlay.innerHTML = '';
+
+                // Calculate scaling factors
+                const scaleX = this.currentFrameSize.width / this.originalFrameSize.width;
+                const scaleY = this.currentFrameSize.height / this.originalFrameSize.height;
+
+                console.log('Scaling factors:', { scaleX, scaleY });
+
+                // Add face boxes with proper scaling and offset correction
+                this.currentFaces.forEach((face, index) => {
+                    const [x, y, w, h] = face.bbox;
+                    
+                    // Scale coordinates to match displayed image
+                    const scaledX = (x * scaleX) + this.offsetX;
+                    const scaledY = (y * scaleY) + this.offsetY;
+                    const scaledW = w * scaleX;
+                    const scaledH = h * scaleY;
+
+                    const faceBox = document.createElement('div');
+                    faceBox.className = `face-box ${face.isReal ? 'real' : 'fake'}`;
+                    faceBox.style.left = `${scaledX}px`;
+                    faceBox.style.top = `${scaledY}px`;
+                    faceBox.style.width = `${scaledW}px`;
+                    faceBox.style.height = `${scaledH}px`;
+
+                    const label = document.createElement('div');
+                    label.className = `face-label ${face.isReal ? 'real' : 'fake'}`;
+                    label.textContent = `${face.isReal ? 'REAL' : 'FAKE'} (${Math.round(face.confidence * 100)}%)`;
+
+                    faceBox.appendChild(label);
+                    this.faceOverlay.appendChild(faceBox);
+                });
+            }
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AntiSpoofingWebApp();
+        });
+    </script>
+</body>
+</html>

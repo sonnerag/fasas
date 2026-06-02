@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Detection - Attendance Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .back-btn {
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .video-section {
+            position: relative;
+        }
+
+        .video-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+
+        .video-frame {
+            width: 100%;
+            height: auto;
+            display: block;
+            max-width: 640px;
+        }
+
+        .face-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .face-box {
+            position: absolute;
+            border: 3px solid;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .face-box.real {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .face-box.fake {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .face-box.not-in-class {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.3);
+            backdrop-filter: blur(2px);
+        }
+
+        .face-label {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .face-label.real {
+            background: #10b981;
+        }
+
+        .face-label.fake {
+            background: #ef4444;
+        }
+
+        .face-label.not-in-class {
+            background: #ef4444;
+            backdrop-filter: blur(2px);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .status-card h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .status-value {
+            font-weight: 600;
+        }
+
+        .connection-status {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .connection-status.connected {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .connection-status.disconnected {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .attendance-messages {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .attendance-messages h3 {
+            margin-bottom: 15px;
+            color: #1e293b;
+        }
+
+        .attendance-message {
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .attendance-message:last-child {
+            margin-bottom: 0;
+        }
+
+        .attendance-message.success {
+            background: #dcfce7;
+            border: 1px solid #bbf7d0;
+        }
+
+        .attendance-message.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            backdrop-filter: blur(2px);
+        }
+
+        .message-text {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .message-text.success {
+            color: #166534;
+        }
+
+        .message-text.error {
+            color: #991b1b;
+        }
+
+        .message-time {
+            font-size: 12px;
+        }
+
+        .message-time.success {
+            color: #059669;
+        }
+
+        .message-time.error {
+            color: #dc2626;
+        }
+
+        .no-messages {
+            text-align: center;
+            color: #64748b;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .back-btn {
+                position: static;
+                transform: none;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="/" class="back-btn">← Back to Home</a>
+            <h1>📹 Live Detection</h1>
+            <p>Real-time face detection and attendance tracking</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-container">
+                    <!-- MJPEG stream: browser maintains a single persistent connection.
+                         No per-frame polling needed — frames arrive as fast as the server sends them. -->
+                    <img id="videoFrame" class="video-frame" src="/api/video_feed" alt="Camera Feed"
+                        onerror="this.src='/api/video_feed'">
+                    <div id="faceOverlay" class="face-overlay"></div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div id="connectionStatus" class="connection-status disconnected">
+                    🔴 System Disconnected
+                </div>
+
+                <div class="status-card">
+                    <h3>📊 Detection Stats</h3>
+                    <div class="status-item">
+                        <span>Total Faces:</span>
+                        <span id="totalFaces" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Real Faces:</span>
+                        <span id="realFaces" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Recognized:</span>
+                        <span id="recognizedFaces" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Attendance Today:</span>
+                        <span id="attendanceToday" class="status-value">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span>FPS:</span>
+                        <span id="fps" class="status-value">0</span>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <h3>🎯 System Status</h3>
+                    <div class="status-item">
+                        <span>Detection:</span>
+                        <span class="status-value" style="color: #10b981;">Always On</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Students Loaded:</span>
+                        <span id="studentsLoaded" class="status-value">0</span>
+                    </div>
+                </div>
+
+                <div class="attendance-messages">
+                    <h3>✅ Recent Attendance</h3>
+                    <div id="attendanceMessages">
+                        <div class="no-messages">No attendance taken yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class LiveDetection {
+            constructor() {
+                this.apiBase = '/api';
+                this.isConnected = false;
+                this.updateInterval = null;
+                this.frameInterval = null;
+                this.originalFrameSize = { width: 640, height: 480 };
+                this.currentFrameSize = { width: 0, height: 0 };
+                this.offsetX = 5;
+                this.offsetY = 8;
+                this.lastMessageCount = 0;
+                this.lastLatestMessage = null;
+
+                this.initializeElements();
+                this.setupEventListeners();
+                this.checkConnection();
+            }
+
+            initializeElements() {
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.videoFrame = document.getElementById('videoFrame');
+                this.faceOverlay = document.getElementById('faceOverlay');
+                this.attendanceMessages = document.getElementById('attendanceMessages');
+
+                this.totalFaces = document.getElementById('totalFaces');
+                this.realFaces = document.getElementById('realFaces');
+                this.recognizedFaces = document.getElementById('recognizedFaces');
+                this.attendanceToday = document.getElementById('attendanceToday');
+                this.fps = document.getElementById('fps');
+                this.studentsLoaded = document.getElementById('studentsLoaded');
+            }
+
+            setupEventListeners() {
+                this.videoFrame.addEventListener('load', () => {
+                    this.updateFrameSize();
+                });
+
+                window.addEventListener('resize', () => {
+                    this.updateFrameSize();
+                });
+
+                // Stop detection when leaving the page
+                window.addEventListener('beforeunload', () => {
+                    this.stopDetection();
+                });
+            }
+
+            updateFrameSize() {
+                const img = this.videoFrame;
+                if (img.naturalWidth && img.naturalHeight) {
+                    this.originalFrameSize = {
+                        width: img.naturalWidth,
+                        height: img.naturalHeight
+                    };
+                }
+
+                const rect = img.getBoundingClientRect();
+                this.currentFrameSize = {
+                    width: rect.width,
+                    height: rect.height
+                };
+            }
+
+            async checkConnection() {
+                try {
+                    const response = await fetch(`${this.apiBase}/health`);
+                    if (response.ok) {
+                        const health = await response.json();
+                        this.isConnected = true;
+                        this.connectionStatus.textContent = '🟢 System Connected';
+                        this.connectionStatus.className = 'connection-status connected';
+                        this.studentsLoaded.textContent = health.students_loaded;
+
+                        // Start detection and updates
+                        this.startDetection();
+                        this.startUpdates();
+                    } else {
+                        throw new Error('Backend not responding');
+                    }
+                } catch (error) {
+                    this.isConnected = false;
+                    this.connectionStatus.textContent = '🔴 System Disconnected';
+                    this.connectionStatus.className = 'connection-status disconnected';
+                }
+
+                setTimeout(() => this.checkConnection(), 5000);
+            }
+
+            async startDetection() {
+                try {
+                    const response = await fetch(`${this.apiBase}/start_detection`, {
+                        method: 'POST'
+                    });
+                    if (response.ok) {
+                        console.log('Detection started');
+                    }
+                } catch (error) {
+                    console.error('Failed to start detection:', error);
+                }
+            }
+
+            async stopDetection() {
+                try {
+                    const response = await fetch(`${this.apiBase}/stop_detection`, {
+                        method: 'POST'
+                    });
+                    if (response.ok) {
+                        console.log('Detection stopped');
+                    }
+                } catch (error) {
+                    console.error('Failed to stop detection:', error);
+                }
+            }
+
+            startUpdates() {
+                // Frame streaming is handled by the MJPEG src directly — no frameInterval needed.
+                // Stats/Overlay poll: every 150ms keeps tracking overlays responsive and synchronized.
+                this.updateInterval = setInterval(() => this.updateStats(), 150);
+            }
+
+            stopUpdates() {
+                if (this.updateInterval) {
+                    clearInterval(this.updateInterval);
+                    this.updateInterval = null;
+                }
+            }
+
+            async updateStats() {
+                try {
+                    const response = await fetch(`${this.apiBase}/faces`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.updateStatsDisplay(data.stats);
+                            this.currentFaces = data.faces;
+                            this.updateFaceOverlay();
+
+                            // Update attendance messages
+                            if (data.recent_attendance) {
+                                // Check if messages have changed by comparing the latest message
+                                const latestMessage = data.recent_attendance[data.recent_attendance.length - 1];
+                                const currentLatest = this.lastLatestMessage;
+
+                                if (!currentLatest ||
+                                    !latestMessage ||
+                                    latestMessage.timestamp !== currentLatest.timestamp ||
+                                    latestMessage.message !== currentLatest.message) {
+                                    this.updateAttendanceMessages(data.recent_attendance);
+                                    this.lastLatestMessage = latestMessage;
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to update stats:', error);
+                }
+            }
+
+            updateStatsDisplay(stats) {
+                this.totalFaces.textContent = stats.total_faces || 0;
+                this.realFaces.textContent = stats.real_faces || 0;
+                this.recognizedFaces.textContent = stats.recognized_faces || 0;
+                this.attendanceToday.textContent = stats.attendance_taken || 0;
+                this.fps.textContent = Math.round(stats.fps || 0);
+            }
+
+            updateAttendanceMessages(messages) {
+                if (messages.length === 0) {
+                    this.attendanceMessages.innerHTML = '<div class="no-messages">No attendance taken yet</div>';
+                    return;
+                }
+
+                this.attendanceMessages.innerHTML = '';
+
+                // Show messages in reverse order (newest first)
+                messages.slice().reverse().forEach(message => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `attendance-message ${message.is_success ? 'success' : 'error'}`;
+                    messageDiv.innerHTML = `
+                        <div class="message-text ${message.is_success ? 'success' : 'error'}">${message.message}</div>
+                        <div class="message-time ${message.is_success ? 'success' : 'error'}">${message.timestamp}</div>
+                    `;
+                    this.attendanceMessages.appendChild(messageDiv);
+                });
+            }
+
+            updateFaceOverlay() {
+                if (!this.currentFaces || !this.originalFrameSize.width || !this.currentFrameSize.width) return;
+
+                this.faceOverlay.innerHTML = '';
+
+                const scaleX = this.currentFrameSize.width / this.originalFrameSize.width;
+                const scaleY = this.currentFrameSize.height / this.originalFrameSize.height;
+
+                this.currentFaces.forEach((face, index) => {
+                    const [x, y, w, h] = face.bbox;
+
+                    const scaledX = (x * scaleX) + this.offsetX;
+                    const scaledY = (y * scaleY) + this.offsetY;
+                    const scaledW = w * scaleX;
+                    const scaledH = h * scaleY;
+
+                    const faceBox = document.createElement('div');
+
+                    // Determine face box class based on recognition and class status
+                    if (face.recognizedName) {
+                        if (face.classInfo) {
+                            faceBox.className = 'face-box real';
+                        } else {
+                            faceBox.className = 'face-box not-in-class';
+                        }
+                    } else {
+                        faceBox.className = `face-box ${face.isReal ? 'real' : 'fake'}`;
+                    }
+
+                    faceBox.style.left = `${scaledX}px`;
+                    faceBox.style.top = `${scaledY}px`;
+                    faceBox.style.width = `${scaledW}px`;
+                    faceBox.style.height = `${scaledH}px`;
+
+                    const label = document.createElement('div');
+
+                    if (face.recognizedName) {
+                        if (face.classInfo) {
+                            label.className = 'face-label real';
+                            label.textContent = `${face.recognizedName} (${Math.round(face.confidence * 100)}%)`;
+                        } else {
+                            label.className = 'face-label not-in-class';
+                            label.textContent = `${face.recognizedName} (${Math.round(face.confidence * 100)}%)`;
+                        }
+                    } else {
+                        label.className = `face-label ${face.isReal ? 'real' : 'fake'}`;
+                        if (face.isReal) {
+                            label.textContent = `REAL (${Math.round(face.confidence * 100)}%)`;
+                        } else {
+                            label.textContent = `NOT RECOGNIZED (${Math.round(face.confidence * 100)}%)`;
+                        }
+                    }
+
+                    faceBox.appendChild(label);
+                    this.faceOverlay.appendChild(faceBox);
+                });
+            }
+        }
+
+        // Initialize the app when the page loads
+        let app;
+        document.addEventListener('DOMContentLoaded', () => {
+            app = new LiveDetection();
+        });
+    </script>
+</body>
+
+</html>
