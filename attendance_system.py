@@ -59,6 +59,9 @@ class AttendanceSystem:
         # Initialize database
         self.init_database()
         
+        self.recognition_lock = threading.Lock()
+        self.dlib_lock = threading.Lock()
+        
         # Load face encodings
         self.known_face_encodings = []
         self.known_face_names = []
@@ -80,7 +83,6 @@ class AttendanceSystem:
         }
         
         # ── Performance: recognition runs in its own slow thread ──────────────
-        self.recognition_lock = threading.Lock()
         # Cache: maps face-index → {recognizedName, recognizedId, classInfo}
         self.recognition_cache = {}
         # Frame queued for recognition thread to process
@@ -220,18 +222,23 @@ class AttendanceSystem:
         cursor.execute('SELECT student_id, name, face_encoding FROM students WHERE face_encoding IS NOT NULL')
         students = cursor.fetchall()
         
-        self.known_face_encodings = []
-        self.known_face_names = []
-        self.known_face_ids = []
+        new_encodings = []
+        new_names = []
+        new_ids = []
         
         for student_id, name, face_encoding_blob in students:
             try:
                 face_encoding = pickle.loads(face_encoding_blob)
-                self.known_face_encodings.append(face_encoding)
-                self.known_face_names.append(name)
-                self.known_face_ids.append(student_id)
+                new_encodings.append(face_encoding)
+                new_names.append(name)
+                new_ids.append(student_id)
             except Exception as e:
                 print(f"Error loading face encoding for {name}: {e}")
+        
+        with self.recognition_lock:
+            self.known_face_encodings = new_encodings
+            self.known_face_names = new_names
+            self.known_face_ids = new_ids
         
         conn.close()
         print(f"✅ Loaded {len(self.known_face_encodings)} face encodings")
@@ -405,7 +412,12 @@ class AttendanceSystem:
             frame = self.recognition_frame_queue
             bboxes = list(self.recognition_bbox_queue)
 
-            if frame is None or not bboxes or not self.known_face_encodings:
+            with self.recognition_lock:
+                known_encodings = self.known_face_encodings
+                known_names = self.known_face_names
+                known_ids = self.known_face_ids
+
+            if frame is None or not bboxes or not known_encodings:
                 continue
 
             new_cache = {}
@@ -422,7 +434,8 @@ class AttendanceSystem:
                 # ────────────────────────────────────────────────────────────
 
                 try:
-                    encodings = face_recognition.face_encodings(face_rgb)
+                    with self.dlib_lock:
+                        encodings = face_recognition.face_encodings(face_rgb)
                 except Exception:
                     encodings = []
 
@@ -430,7 +443,8 @@ class AttendanceSystem:
                     # Try full-size as fallback
                     try:
                         face_rgb_full = cv2.cvtColor(face_img, cv2.COLOR_BGR2RGB)
-                        encodings = face_recognition.face_encodings(face_rgb_full)
+                        with self.dlib_lock:
+                            encodings = face_recognition.face_encodings(face_rgb_full)
                     except Exception:
                         encodings = []
 
@@ -438,14 +452,14 @@ class AttendanceSystem:
                     continue
 
                 enc = encodings[0]
-                matches = face_recognition.compare_faces(self.known_face_encodings, enc)
-                distances = face_recognition.face_distance(self.known_face_encodings, enc)
+                matches = face_recognition.compare_faces(known_encodings, enc)
+                distances = face_recognition.face_distance(known_encodings, enc)
 
                 if True in matches:
                     best = int(np.argmin(distances))
-                    if distances[best] < 0.8:
-                        r_name = self.known_face_names[best]
-                        r_id   = self.known_face_ids[best]
+                    if distances[best] < 0.55:
+                        r_name = known_names[best]
+                        r_id   = known_ids[best]
                         print(f"🔍 Recognition: {r_name} ({r_id}) dist={distances[best]:.3f}")
 
                         # Spoof confidence not available here — use placeholder
@@ -758,7 +772,8 @@ class AttendanceSystem:
                 photo_rgb = cv2.cvtColor(np.array(photo_image), cv2.COLOR_RGB2BGR)
                 
                 # Get face encodings
-                face_encodings = face_recognition.face_encodings(photo_rgb)
+                with self.dlib_lock:
+                    face_encodings = face_recognition.face_encodings(photo_rgb)
                 
                 if not face_encodings:
                     return jsonify({'success': False, 'error': 'No face detected in photo'})
@@ -766,14 +781,19 @@ class AttendanceSystem:
                 face_encoding = face_encodings[0]
                 
                 # Check for duplicate face
-                if self.known_face_encodings:
-                    matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding)
-                    face_distances = face_recognition.face_distance(self.known_face_encodings, face_encoding)
+                with self.recognition_lock:
+                    known_encodings = self.known_face_encodings
+                    known_names = self.known_face_names
+                    known_ids = self.known_face_ids
+
+                if known_encodings:
+                    matches = face_recognition.compare_faces(known_encodings, face_encoding, tolerance=0.45)
+                    face_distances = face_recognition.face_distance(known_encodings, face_encoding)
                     if True in matches:
                         best_match_index = np.argmin(face_distances)
-                        if face_distances[best_match_index] < 0.6:  # Strict recognition threshold for registration
-                            matched_name = self.known_face_names[best_match_index]
-                            matched_id = self.known_face_ids[best_match_index]
+                        if face_distances[best_match_index] < 0.45:  # Stricter recognition threshold for registration
+                            matched_name = known_names[best_match_index]
+                            matched_id = known_ids[best_match_index]
                             return jsonify({'success': False, 'error': f'This face is already registered to student: {matched_name} ({matched_id})'})
                 
                 # Save to database
@@ -834,8 +854,8 @@ class AttendanceSystem:
                     photo_bytes = base64.b64decode(photo_data.split(',')[1])
                     photo_image = Image.open(BytesIO(photo_bytes))
                     photo_rgb = cv2.cvtColor(np.array(photo_image), cv2.COLOR_RGB2BGR)
-                    
-                    face_encodings = face_recognition.face_encodings(photo_rgb)
+                    with self.dlib_lock:
+                        face_encodings = face_recognition.face_encodings(photo_rgb)
                     if not face_encodings:
                         conn.close()
                         return jsonify({'success': False, 'error': 'No face detected in photo'})
@@ -843,16 +863,21 @@ class AttendanceSystem:
                     face_encoding = face_encodings[0]
                     
                     # Check for duplicate face (excluding current student)
-                    if self.known_face_encodings:
-                        for i, known_id in enumerate(self.known_face_ids):
+                    with self.recognition_lock:
+                        known_encodings = self.known_face_encodings
+                        known_names = self.known_face_names
+                        known_ids = self.known_face_ids
+
+                    if known_encodings:
+                        for i, known_id in enumerate(known_ids):
                             if known_id == student_id:
                                 continue # Skip self
                                 
-                            match = face_recognition.compare_faces([self.known_face_encodings[i]], face_encoding)[0]
-                            dist = face_recognition.face_distance([self.known_face_encodings[i]], face_encoding)[0]
-                            if match and dist < 0.6:
+                            match = face_recognition.compare_faces([known_encodings[i]], face_encoding, tolerance=0.45)[0]
+                            dist = face_recognition.face_distance([known_encodings[i]], face_encoding)[0]
+                            if match and dist < 0.45:
                                 conn.close()
-                                return jsonify({'success': False, 'error': f'This face is already registered to student: {self.known_face_names[i]} ({known_id})'})
+                                return jsonify({'success': False, 'error': f'This face is already registered to student: {known_names[i]} ({known_id})'})
 
                     cursor.execute('''
                         UPDATE students SET name = ?, face_encoding = ? WHERE student_id = ?
