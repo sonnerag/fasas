@@ -18,26 +18,27 @@ check_port() {
     fi
 }
 
-# Check if port 5000 is available
-if check_port 5000; then
-    echo "⚠️  Port 5000 is already in use. Please stop any existing server first."
+# Check if port 8000 is available
+if check_port 8000; then
+    echo "⚠️  Port 8000 is already in use. Please stop any existing server first."
     exit 1
 fi
 
-echo "✅ Port 5000 is available"
+echo "✅ Port 8000 is available"
 
 # Activate virtual environment
 echo "🐍 Activating virtual environment..."
 source venv/bin/activate
 
-# Install additional dependencies if needed
-echo "📦 Installing additional dependencies..."
-pip install flask flask-cors face-recognition
+# Install additional dependencies if needed (dlib precompiled to avoid building from source)
+echo "📦 Checking dependencies..."
+pip install -q flask flask-cors dlib-bin
+pip install -q --no-deps face_recognition face_recognition_models
 
 # Start the Attendance Management System
 echo "🚀 Starting Attendance Management System..."
 echo "📡 The system will run with always-on detection"
-echo "🌐 Web interface will be available at: http://localhost:5000"
+echo "🌐 Web interface will be available at: http://localhost:8000"
 echo "🎯 Features:"
 echo "   - Live face detection with anti-spoofing"
 echo "   - Student management with photo capture"

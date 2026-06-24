@@ -265,7 +265,7 @@ class MultiFaceWebcamWithAPI:
                 self.detection_thread.join()
             print("Detection stopped")
     
-    def run_api_server(self, host='0.0.0.0', port=5000):
+    def run_api_server(self, host='0.0.0.0', port=8000):
         """Run the Flask API server"""
         print(f"🌐 Starting API server on http://{host}:{port}")
         print("📡 Available endpoints:")

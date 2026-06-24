@@ -88,7 +88,15 @@ class AttendanceSystem:
         # Frame queued for recognition thread to process
         self.recognition_frame_queue = None
         self.recognition_bbox_queue = []   # list of (bbox, face_index) from latest spoof pass
-        self.recognition_interval = 2.0    # seconds between recognition passes
+        self.recognition_interval = 1.0    # seconds between recognition passes
+        # ── Anti-spoof temporal gate ──────────────────────────────────────────
+        # A recognized student must be confirmed REAL on this many CONSECUTIVE
+        # recognition cycles before attendance is taken. A photo/phone usually
+        # fools the liveness model for only the first instant; by the time the
+        # streak completes the model has flipped it to "fake", the face drops out
+        # of real_bboxes, the streak resets, and no attendance is recorded.
+        self.required_real_cycles = 3
+        self.real_streak = {}              # student_id → consecutive real+recognized cycles
         # ─────────────────────────────────────────────────────────────────────
         
         # Attendance tracking
@@ -147,24 +155,31 @@ class AttendanceSystem:
     def camera_loop(self):
         """Continuously reads frames from the camera to avoid any backlog in the OpenCV buffer."""
         while self.running:
-            if not self.camera_initialized or self.cap is None:
-                time.sleep(0.05)
-                continue
-            
-            ret, frame = self.cap.read()
-            if ret:
-                with self.camera_lock:
+            # Read and release must be mutually exclusive: on macOS (AVFoundation)
+            # calling cap.release() while another thread is inside cap.read() frees the
+            # CaptureDelegate mid-grab and crashes with a segfault. Holding camera_lock
+            # around read() guarantees release_camera() never runs during a read.
+            with self.camera_lock:
+                cap = self.cap
+                if self.camera_initialized and cap is not None:
+                    ret, frame = cap.read()
+                else:
+                    ret, frame = False, None
+                if ret:
                     self.current_frame = frame
-            else:
-                time.sleep(0.01)
+            if not ret:
+                time.sleep(0.03)
 
     def release_camera(self):
         """Release camera resources"""
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
-            self.camera_initialized = False
-            print("Camera released")
+        # Take camera_lock so we never release while camera_loop is inside cap.read()
+        # (see camera_loop) — that race segfaults on macOS.
+        with self.camera_lock:
+            if self.cap is not None:
+                self.cap.release()
+                self.cap = None
+                self.camera_initialized = False
+                print("Camera released")
 
     def init_database(self):
         """Initialize SQLite database for students and attendance"""
@@ -374,6 +389,7 @@ class AttendanceSystem:
                     cached = self.recognition_cache.get(idx, {})
                 recognized_name = cached.get('recognizedName')
                 recognized_id   = cached.get('recognizedId')
+                recognized_conf = cached.get('recognizedConfidence')
                 class_info      = cached.get('classInfo')
 
                 if is_real:
@@ -386,6 +402,7 @@ class AttendanceSystem:
                     'detectionConfidence': float(detection_conf),
                     'recognizedName': recognized_name,
                     'recognizedId': recognized_id,
+                    'recognizedConfidence': recognized_conf,
                     'classInfo': class_info
                 })
 
@@ -399,6 +416,17 @@ class AttendanceSystem:
             print(f"Error in predict_spoof_only: {e}")
             return []
 
+    @staticmethod
+    def _face_confidence(face_distance, threshold=0.6):
+        """Map a dlib face distance (0=identical) to an intuitive 0..1 confidence.
+        A genuine match (~0.3) lands near 0.95; the 0.6 tolerance boundary is ~0.5.
+        This is the standard face_recognition curve, not a naive linear scale."""
+        if face_distance > threshold:
+            linear = (1.0 - face_distance) / ((1.0 - threshold) * 2.0)
+            return float(max(0.0, linear))
+        linear = 1.0 - (face_distance / (threshold * 2.0))
+        return float(linear + (1.0 - linear) * (((linear - 0.5) * 2.0) ** 0.2))
+
     def recognition_loop(self):
         """Slow background thread: runs face_recognition every `recognition_interval` seconds.
         Completely decoupled from the main detection loop so it never blocks the camera."""
@@ -406,6 +434,7 @@ class AttendanceSystem:
             time.sleep(self.recognition_interval)
 
             if not self.detection_active:
+                self.real_streak = {}
                 continue
 
             # Grab latest queued data (non-blocking snapshot)
@@ -418,9 +447,12 @@ class AttendanceSystem:
                 known_ids = self.known_face_ids
 
             if frame is None or not bboxes or not known_encodings:
+                # Nothing live to confirm this cycle → all streaks reset.
+                self.real_streak = {}
                 continue
 
             new_cache = {}
+            recognized_this_cycle = set()   # student_ids confirmed real+recognized now
 
             for bbox, face_idx in bboxes:
                 x, y, w, h = bbox
@@ -460,17 +492,39 @@ class AttendanceSystem:
                     if distances[best] < 0.55:
                         r_name = known_names[best]
                         r_id   = known_ids[best]
-                        print(f"🔍 Recognition: {r_name} ({r_id}) dist={distances[best]:.3f}")
+                        # Turn the face-distance into a 0..1 recognition confidence
+                        # (distance 0 = identical = 100%, distance 0.55 = cutoff ≈ 0%).
+                        rec_conf = self._face_confidence(distances[best])
 
-                        # Spoof confidence not available here — use placeholder
+                        # ── Temporal anti-spoof gate ──────────────────────────
+                        # These bboxes only contain faces the liveness model rated
+                        # REAL this pass, so reaching here counts as one real cycle.
+                        # Count each student at most once per cycle so two boxes of the
+                        # same person (e.g. real face + a photo) can't fast-track it.
+                        if r_id in recognized_this_cycle:
+                            continue
+                        recognized_this_cycle.add(r_id)
+                        streak = self.real_streak.get(r_id, 0) + 1
+                        self.real_streak[r_id] = streak
+                        print(f"🔍 Recognition: {r_name} ({r_id}) dist={distances[best]:.3f} "
+                              f"conf={rec_conf:.2f} real-streak={streak}/{self.required_real_cycles}")
+
                         class_info = self.get_student_class_info(r_id)
-                        self.take_attendance(r_id, r_name, 1.0, class_info)
+                        if streak >= self.required_real_cycles:
+                            self.take_attendance(r_id, r_name, rec_conf, class_info)
+                        # ──────────────────────────────────────────────────────
 
                         new_cache[face_idx] = {
                             'recognizedName': r_name,
                             'recognizedId': r_id,
+                            'recognizedConfidence': rec_conf,
                             'classInfo': class_info
                         }
+
+            # Any student not confirmed real+recognized this cycle loses their streak,
+            # so a face must stay continuously live to ever reach the threshold.
+            for sid in [s for s in self.real_streak if s not in recognized_this_cycle]:
+                del self.real_streak[sid]
 
             # Atomically replace cache
             with self.recognition_lock:
@@ -1122,7 +1176,7 @@ class AttendanceSystem:
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)})
 
-    def run_api_server(self, host='0.0.0.0', port=5000):
+    def run_api_server(self, host='0.0.0.0', port=8000):
         """Run the Flask API server"""
         print(f"🌐 Starting Attendance Management System on http://{host}:{port}")
         print("📡 Available pages:")

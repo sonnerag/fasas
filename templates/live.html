@@ -573,40 +573,39 @@
 
                     const faceBox = document.createElement('div');
 
-                    // Determine face box class based on recognition and class status
-                    if (face.recognizedName) {
+                    // Liveness decides the colour. A recognized name is NEVER shown
+                    // green unless the anti-spoof model says the face is live, so a
+                    // phone/photo of a known person stays red ("SPOOF") and can't pass.
+                    const recPct = Math.round((face.recognizedConfidence ?? 0) * 100);
+                    let boxClass, labelText;
+                    if (face.recognizedName && face.isReal) {
                         if (face.classInfo) {
-                            faceBox.className = 'face-box real';
+                            boxClass = 'real';
+                            labelText = `${face.recognizedName} (${recPct}%)`;
                         } else {
-                            faceBox.className = 'face-box not-in-class';
+                            boxClass = 'not-in-class';
+                            labelText = `${face.recognizedName} (${recPct}%) · no class`;
                         }
+                    } else if (face.recognizedName && !face.isReal) {
+                        boxClass = 'fake';
+                        labelText = `⚠ SPOOF: ${face.recognizedName}`;
+                    } else if (face.isReal) {
+                        boxClass = 'not-in-class';
+                        labelText = `REAL · not registered`;
                     } else {
-                        faceBox.className = `face-box ${face.isReal ? 'real' : 'fake'}`;
+                        boxClass = 'fake';
+                        labelText = `FAKE / NOT RECOGNIZED`;
                     }
 
+                    faceBox.className = `face-box ${boxClass}`;
                     faceBox.style.left = `${scaledX}px`;
                     faceBox.style.top = `${scaledY}px`;
                     faceBox.style.width = `${scaledW}px`;
                     faceBox.style.height = `${scaledH}px`;
 
                     const label = document.createElement('div');
-
-                    if (face.recognizedName) {
-                        if (face.classInfo) {
-                            label.className = 'face-label real';
-                            label.textContent = `${face.recognizedName} (${Math.round(face.confidence * 100)}%)`;
-                        } else {
-                            label.className = 'face-label not-in-class';
-                            label.textContent = `${face.recognizedName} (${Math.round(face.confidence * 100)}%)`;
-                        }
-                    } else {
-                        label.className = `face-label ${face.isReal ? 'real' : 'fake'}`;
-                        if (face.isReal) {
-                            label.textContent = `REAL (${Math.round(face.confidence * 100)}%)`;
-                        } else {
-                            label.textContent = `NOT RECOGNIZED (${Math.round(face.confidence * 100)}%)`;
-                        }
-                    }
+                    label.className = `face-label ${boxClass}`;
+                    label.textContent = labelText;
 
                     faceBox.appendChild(label);
                     this.faceOverlay.appendChild(faceBox);

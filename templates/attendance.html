@@ -170,8 +170,12 @@
             }
 
             initializeElements() {
-                // Set today's date
-                document.getElementById('attendanceDate').value = new Date().toISOString().split('T')[0];
+                // Set today's date in LOCAL time (toISOString() uses UTC, which is the
+                // previous day for UTC+ timezones in the early morning and would never
+                // match the local date the backend stores attendance under).
+                const d = new Date();
+                const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                document.getElementById('attendanceDate').value = localDate;
             }
 
             setupEventListeners() {

@@ -499,7 +499,7 @@
                 this.closeBtn = document.querySelector('.close');
                 
                 // Set default date to today
-                document.getElementById('classDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('classDate').value = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date());
             }
 
             setupEventListeners() {
@@ -656,7 +656,7 @@
                         this.loadClasses();
                         
                         // Reset default date
-                        document.getElementById('classDate').value = new Date().toISOString().split('T')[0];
+                        document.getElementById('classDate').value = (d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date());
                     } else {
                         alert('Error: ' + result.error);
                     }
